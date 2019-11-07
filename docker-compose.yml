@@ -1,0 +1,30 @@
+---
+version: '3.7'
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.19.0.0/24
+
+services:
+  collectd_server:
+    build:
+      context: .
+      dockerfile: docker/dev/collectd/Dockerfile
+    image: gitlab-registry.in2p3.fr/rferrand/collectd-prometheus-plugin/dev/collectd-server:latest
+    init: true
+    environment:
+      DEBUG: 'true'
+
+  traefik:
+    image: traefik:latest
+    init: true
+    volumes:
+      - ./docker/dev/traefik/traefik.toml:/etc/traefik/traefik.toml
+    ports:
+      - 127.0.0.1:8080:8080
+      - 127.0.0.1:8081:8081
+      - 127.0.0.1:8082:8082

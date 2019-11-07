@@ -1,0 +1,26 @@
+[log]
+  level = "DEBUG"
+
+[api]
+  dashboard = true
+  insecure = true
+  debug = false
+
+[entryPoints]
+  [entryPoints.traefik]
+    address = ":8082"
+  [entryPoints.metrics]
+    address = ":8081"
+
+[http.routers]
+  [http.routers.my-api]
+    rule = "Host(`traefik.docker.localhost:8082`)"
+    service = "api@internal"
+    entryPoints = ["api"]
+
+[metrics]
+  [metrics.prometheus]
+    buckets = [0.1,0.3,1.2,5.0]
+    addEntryPointsLabels = true
+    addServicesLabels = true
+    entryPoint = "metrics"
