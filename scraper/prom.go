@@ -27,10 +27,14 @@ type PrometheusScraper struct {
 	FieldToHash                pcollectd.FieldType
 	TypeInstanceOnlyHashedMeta bool
 	HashLabelFunctionHashSize  int
+	AdditionalMetadata         api.Metadata
 	labelHasher                hash.Hash
 }
 
 func NewPrometheusScraper(pluginName string) *PrometheusScraper {
+
+	additionalMetadata := make(api.Metadata)
+	additionalMetadata.Set("api-stable", false)
 
 	typeInstanceOnlyForHashedMeta := true
 	hasherHashSize := 8
@@ -52,6 +56,7 @@ func NewPrometheusScraper(pluginName string) *PrometheusScraper {
 		FieldToHash:                fieldToHashCollectdField,
 		TypeInstanceOnlyHashedMeta: typeInstanceOnlyForHashedMeta,
 		HashLabelFunctionHashSize:  hasherHashSize,
+		AdditionalMetadata:         additionalMetadata,
 		labelHasher:                hasher,
 	}
 }
@@ -122,6 +127,12 @@ func (ps *PrometheusScraper) Parse() error {
 
 		for _, vl := range vls {
 			//putvalWriter.Write(context.Background(), vl)
+
+			if len(ps.AdditionalMetadata) > 0 {
+				nMeta := vl.Metadata.CloneMerge(ps.AdditionalMetadata)
+				vl.Metadata = nMeta
+			}
+
 			if err := plugin.Write(vl); err != nil {
 				return err
 			}
