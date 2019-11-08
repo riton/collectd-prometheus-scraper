@@ -13,11 +13,11 @@ const (
 var (
 	gConfig   *config
 	logger    logging.Logger
-	underTest = true
+	underTest = false
 )
 
 func main() {
-	scraper := scraper.NewPrometheusScraper()
+	scraper := scraper.NewPrometheusScraper("traefik")
 	scraper.Read()
 }
 
@@ -31,7 +31,7 @@ func _init() {
 	gConfig = newConfig()
 	logger = logging.NewCollectdLogger(gConfig.Debug)
 
-	pscraper := scraper.NewPrometheusScraper()
+	pscraper := scraper.NewPrometheusScraper("traefik")
 
 	plugin.RegisterRead(pluginName, pscraper)
 }

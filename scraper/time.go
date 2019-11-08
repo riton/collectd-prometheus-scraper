@@ -8,7 +8,7 @@ import (
 
 func promTimestampToTime(pts *int64) time.Time {
 	if pts == nil {
-		return time.Time{}
+		return time.Now()
 	}
 
 	return timemilli.FromUnixMilli(*pts)
