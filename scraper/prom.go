@@ -104,16 +104,12 @@ func (ps *PrometheusScraper) Parse() error {
 		//fmt.Printf("[%s] %+v\n", mName, mFamily)
 
 		switch mType := mFamily.GetType(); mType {
-		case dto.MetricType_GAUGE:
-			vls, err = ps.promGaugeToValueLists(mFamily)
-		case dto.MetricType_COUNTER:
-			vls, err = ps.promCounterToValueLists(mFamily)
+		case dto.MetricType_GAUGE, dto.MetricType_UNTYPED, dto.MetricType_COUNTER:
+			vls, err = ps.promSimpleValueToCollectdValueLists(mFamily)
 		case dto.MetricType_SUMMARY:
 			vls, err = ps.promSummaryToValueLists(mFamily)
 		case dto.MetricType_HISTOGRAM:
 			vls, err = ps.promHistogramToValueLists(mFamily)
-		case dto.MetricType_UNTYPED:
-			vls, err = ps.promUntypedToValueLists(mFamily)
 		default:
 			panic(fmt.Sprintf("unknown ptype %d", mType))
 		}
@@ -366,9 +362,13 @@ func (ps PrometheusScraper) promSimpleValueToCollectdValueLists(mf *dto.MetricFa
 		mTime := promTimestampToTime(metric.TimestampMs)
 		mValue := extractValueFromMetric(mf.GetType(), metric)
 
-		labelBasedMeta := make(api.Metadata)
-		for _, label := range metric.GetLabel() {
-			labelBasedMeta.Add(ps.getLabelName(label.GetName()), label.GetValue())
+		labels := metric.GetLabel()
+
+		if len(labels) > 0 {
+			labelBasedMeta := make(api.Metadata)
+			for _, label := range metric.GetLabel() {
+				labelBasedMeta.Add(ps.getLabelName(label.GetName()), label.GetValue())
+			}
 		}
 
 		var pluginInstance, typeInstance string
