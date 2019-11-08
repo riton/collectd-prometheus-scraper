@@ -27,7 +27,7 @@ func (ps *PrometheusScraper) Read() error {
 
 func (ps *PrometheusScraper) Parse() error {
 
-	td, err := os.Open("./testdata/traefik_metrics.txt")
+	td, err := os.Open("./testdata/traefik_2_metrics.txt")
 	if err != nil {
 		panic(err)
 	}
@@ -59,6 +59,8 @@ func (ps *PrometheusScraper) Parse() error {
 			vls, err = ps.promSummaryToValueLists(mFamily)
 		case dto.MetricType_HISTOGRAM:
 			vls, err = ps.promHistogramToValueLists(mFamily)
+		case dto.MetricType_UNTYPED:
+			vls, err = ps.promUntypedToValueLists(mFamily)
 		default:
 			panic(fmt.Sprintf("unknown ptype %d", mType))
 
@@ -165,6 +167,39 @@ func (ps PrometheusScraper) promSummaryToValueLists(mf *dto.MetricFamily) ([]*ap
 	return vls, nil
 }
 
+func (ps PrometheusScraper) promUntypedToValueLists(mf *dto.MetricFamily) ([]*api.ValueList, error) {
+	var vls []*api.ValueList
+
+	for metricIdx, metric := range mf.GetMetric() {
+		mTime := promTimestampToTime(metric.TimestampMs)
+		mValue := *(metric.Untyped.Value)
+
+		mMeta := make(api.Metadata)
+		for _, label := range metric.GetLabel() {
+			mMeta.Add(label.GetName(), label.GetValue())
+		}
+
+		identifier := api.Identifier{
+			Plugin:         ps.PluginName,
+			PluginInstance: mf.GetName(),
+			Type:           "gauge",
+			TypeInstance:   fmt.Sprintf("%d", metricIdx),
+		}
+
+		vl := &api.ValueList{
+			Identifier: identifier,
+			Time:       mTime,
+			Values:     []api.Value{api.Gauge(mValue)},
+			DSNames:    []string{"value"},
+			Metadata:   mMeta,
+		}
+
+		vls = append(vls, vl)
+	}
+
+	return vls, nil
+}
+
 func (ps PrometheusScraper) promGaugeToValueLists(mf *dto.MetricFamily) ([]*api.ValueList, error) {
 	var vls []*api.ValueList
 
@@ -181,7 +216,7 @@ func (ps PrometheusScraper) promGaugeToValueLists(mf *dto.MetricFamily) ([]*api.
 			Plugin:         ps.PluginName,
 			PluginInstance: mf.GetName(),
 			Type:           "gauge",
-			TypeInstance:   fmt.Sprintf("%d", metricIdx),
+			TypeInstance:   fmt.Sprintf("value%d", metricIdx),
 		}
 
 		vl := &api.ValueList{
@@ -214,7 +249,7 @@ func (ps PrometheusScraper) promCounterToValueLists(mf *dto.MetricFamily) ([]*ap
 			Plugin:         ps.PluginName,
 			PluginInstance: mf.GetName(),
 			Type:           "counter",
-			TypeInstance:   fmt.Sprintf("%d", metricIdx),
+			TypeInstance:   fmt.Sprintf("value%d", metricIdx),
 		}
 
 		vl := &api.ValueList{
@@ -229,35 +264,4 @@ func (ps PrometheusScraper) promCounterToValueLists(mf *dto.MetricFamily) ([]*ap
 	}
 
 	return vls, nil
-}
-
-func (ps PrometheusScraper) promMetricFamilyToCollectdValueList(mf *dto.MetricFamily) (*api.ValueList, error) {
-
-	// cIdentifier := api.Identifier{
-	// 	Plugin:         ps.PluginName,
-	// 	PluginInstance: *mf.Name,
-	// }
-
-	// vl := &api.ValueList{
-	// 	Identifier: api.Identifier{
-	// 		Plugin: ps.PluginName,
-	// 	},
-	// 	Time:    time.Now(),
-	// 	DSNames: []string{"value"},
-	// }
-
-	return nil, nil
-}
-
-func promMetricTypeToCollectdType(pType dto.MetricType) string {
-	switch pType {
-	case dto.MetricType_COUNTER:
-		return "counter"
-	case dto.MetricType_GAUGE:
-		return "gauge"
-	case dto.MetricType_SUMMARY:
-		return "gauge"
-	default:
-		panic(fmt.Sprintf("unknown ptype %d", pType))
-	}
 }
