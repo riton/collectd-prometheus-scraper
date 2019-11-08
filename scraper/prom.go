@@ -138,7 +138,7 @@ func (ps PrometheusScraper) promHistogramToValueLists(mf *dto.MetricFamily) ([]*
 	mTime := promTimestampToTime(metric.TimestampMs)
 	mMeta := make(api.Metadata)
 	for _, label := range metric.GetLabel() {
-		mMeta.Add(ps.getLabelName(label.GetName()), label.GetValue())
+		mMeta.Set(ps.getLabelName(label.GetName()), label.GetValue())
 	}
 
 	histogram := metric.Histogram
@@ -187,7 +187,7 @@ func (ps PrometheusScraper) promSummaryToValueLists(mf *dto.MetricFamily) ([]*ap
 	mTime := promTimestampToTime(metric.TimestampMs)
 	mMeta := make(api.Metadata)
 	for _, label := range metric.GetLabel() {
-		mMeta.Add(ps.getLabelName(label.GetName()), label.GetValue())
+		mMeta.Set(ps.getLabelName(label.GetName()), label.GetValue())
 	}
 
 	summary := metric.Summary
@@ -236,7 +236,7 @@ func (ps PrometheusScraper) promUntypedToValueLists(mf *dto.MetricFamily) ([]*ap
 
 		mMeta := make(api.Metadata)
 		for _, label := range metric.GetLabel() {
-			mMeta.Add(ps.getLabelName(label.GetName()), label.GetValue())
+			mMeta.Set(ps.getLabelName(label.GetName()), label.GetValue())
 		}
 
 		pluginInstance := ps.computePluginInstance(mMeta, mf.GetName())
@@ -273,7 +273,7 @@ func (ps PrometheusScraper) promGaugeToValueLists(mf *dto.MetricFamily) ([]*api.
 
 		mMeta := make(api.Metadata)
 		for _, label := range metric.GetLabel() {
-			mMeta.Add(ps.getLabelName(label.GetName()), label.GetValue())
+			mMeta.Set(ps.getLabelName(label.GetName()), label.GetValue())
 		}
 
 		pluginInstance := ps.computePluginInstance(mMeta, mf.GetName())
@@ -310,7 +310,7 @@ func (ps PrometheusScraper) promCounterToValueLists(mf *dto.MetricFamily) ([]*ap
 
 		mMeta := make(api.Metadata)
 		for _, label := range metric.GetLabel() {
-			mMeta.Add(ps.getLabelName(label.GetName()), label.GetValue())
+			mMeta.Set(ps.getLabelName(label.GetName()), label.GetValue())
 		}
 
 		pluginInstance := ps.computePluginInstance(mMeta, mf.GetName())
@@ -364,10 +364,10 @@ func (ps PrometheusScraper) promSimpleValueToCollectdValueLists(mf *dto.MetricFa
 
 		labels := metric.GetLabel()
 
+		labelBasedMeta := make(api.Metadata)
 		if len(labels) > 0 {
-			labelBasedMeta := make(api.Metadata)
 			for _, label := range metric.GetLabel() {
-				labelBasedMeta.Add(ps.getLabelName(label.GetName()), label.GetValue())
+				labelBasedMeta.Set(ps.getLabelName(label.GetName()), label.GetValue())
 			}
 		}
 
@@ -445,11 +445,11 @@ func extendMetadataWithIdentifier(meta api.Metadata,
 	var newMeta api.Metadata
 
 	for _, key := range meta.Toc() {
-		newMeta.Add(key, meta.Get(key))
+		newMeta.Set(key, meta.Get(key))
 	}
 
-	newMeta.Add("prom.metric_name", id.PluginInstance)
-	newMeta.Add("prom.type_instance", id.TypeInstance)
+	newMeta.Set("prom.metric_name", id.PluginInstance)
+	newMeta.Set("prom.type_instance", id.TypeInstance)
 
 	return newMeta
 }
