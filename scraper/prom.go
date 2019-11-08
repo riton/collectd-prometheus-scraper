@@ -442,7 +442,7 @@ func (ps *PrometheusScraper) hashMetadata(meta api.Metadata) string {
 
 func extendMetadataWithIdentifier(meta api.Metadata,
 	id api.Identifier) api.Metadata {
-	var newMeta api.Metadata
+	newMeta := make(api.Metadata)
 
 	for _, key := range meta.Toc() {
 		newMeta.Set(key, meta.Get(key))
