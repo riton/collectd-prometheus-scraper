@@ -22,13 +22,29 @@ import (
 // See https://github.com/prometheus/client_model/blob/master/go/metrics.pb.go
 
 type PrometheusScraper struct {
-	PluginName                 string
-	MetaPrefix                 string
-	FieldToHash                pcollectd.FieldType
+	PluginName  string
+	MetaPrefix  string
+	FieldToHash pcollectd.FieldType
+
+	// TypeInstanceOnlyHashedMeta defines how prometheus values
+	// should be mapped to collectd namespace
+	// If TypeInstanceOnlyHashedMeta is set to `true`, the `type_instance`
+	// value will only contain a hashed version of the value metadatas
+	// and no usable information
 	TypeInstanceOnlyHashedMeta bool
-	HashLabelFunctionHashSize  int
-	AdditionalMetadata         api.Metadata
-	labelHasher                hash.Hash
+
+	// HashLabelFunctionHashSize is the size of the hash used
+	// to ensure unicity of values in the way collectd knows it
+	// (metadata are not considered)
+	// This size can be a value between 1 and 64 but it is highly
+	// recommended to use values equal or greater than 32
+	HashLabelFunctionHashSize int
+
+	// AdditionalMetadata is a set of metadata that should be added
+	// to every metric dispatched
+	// Note: those metadata does not inherits the MetaPrefix value
+	AdditionalMetadata api.Metadata
+	labelHasher        hash.Hash
 }
 
 func NewPrometheusScraper(pluginName string) *PrometheusScraper {
