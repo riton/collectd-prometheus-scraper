@@ -19,18 +19,20 @@ import (
 	pexpfmt "github.com/prometheus/common/expfmt"
 )
 
+// See https://github.com/prometheus/client_model/blob/master/go/metrics.pb.go
+
 type PrometheusScraper struct {
-	PluginName                string
-	MetaPrefix                string
-	FieldToHash               pcollectd.FieldType
-	instanceHashLabels        bool
-	HashLabelFunctionHashSize int
-	labelHasher               hash.Hash
+	PluginName                 string
+	MetaPrefix                 string
+	FieldToHash                pcollectd.FieldType
+	TypeInstanceOnlyHashedMeta bool
+	HashLabelFunctionHashSize  int
+	labelHasher                hash.Hash
 }
 
 func NewPrometheusScraper(pluginName string) *PrometheusScraper {
 
-	hashLabels := true
+	typeInstanceOnlyForHashedMeta := true
 	hasherHashSize := 8
 	fieldToHash := "plugin_instance"
 	var fieldToHashCollectdField pcollectd.FieldType
@@ -42,18 +44,15 @@ func NewPrometheusScraper(pluginName string) *PrometheusScraper {
 		fieldToHashCollectdField = pcollectd.TypeInstanceFieldType
 	}
 
-	var hasher hash.Hash
-	if hashLabels {
-		hasher, _ = blake2b.New(hasherHashSize, nil)
-	}
+	hasher, _ := blake2b.New(hasherHashSize, nil)
 
 	return &PrometheusScraper{
-		PluginName:                pluginName,
-		MetaPrefix:                fmt.Sprintf("%s.", pluginName),
-		FieldToHash:               fieldToHashCollectdField,
-		instanceHashLabels:        hashLabels,
-		HashLabelFunctionHashSize: hasherHashSize,
-		labelHasher:               hasher,
+		PluginName:                 pluginName,
+		MetaPrefix:                 fmt.Sprintf("%s.", pluginName),
+		FieldToHash:                fieldToHashCollectdField,
+		TypeInstanceOnlyHashedMeta: typeInstanceOnlyForHashedMeta,
+		HashLabelFunctionHashSize:  hasherHashSize,
+		labelHasher:                hasher,
 	}
 }
 
@@ -117,7 +116,6 @@ func (ps *PrometheusScraper) Parse() error {
 			vls, err = ps.promUntypedToValueLists(mFamily)
 		default:
 			panic(fmt.Sprintf("unknown ptype %d", mType))
-
 		}
 
 		// for _, metric := range mFamily.Metric {
@@ -187,6 +185,7 @@ func (ps PrometheusScraper) promHistogramToValueLists(mf *dto.MetricFamily) ([]*
 func (ps PrometheusScraper) promSummaryToValueLists(mf *dto.MetricFamily) ([]*api.ValueList, error) {
 	var vls []*api.ValueList
 
+	// TODO: FIXME, should iterate over Metrics
 	metric := mf.Metric[0]
 
 	mTime := promTimestampToTime(metric.TimestampMs)
@@ -342,6 +341,68 @@ func (ps PrometheusScraper) promCounterToValueLists(mf *dto.MetricFamily) ([]*ap
 	return vls, nil
 }
 
+func extractValueFromMetric(mftype dto.MetricType, metric *dto.Metric) api.Value {
+	var value api.Value
+
+	switch mftype {
+	case dto.MetricType_GAUGE:
+		value = api.Gauge(*(metric.Gauge.Value))
+	case dto.MetricType_COUNTER:
+		value = api.Counter(*(metric.Counter.Value))
+	case dto.MetricType_UNTYPED:
+		value = api.Gauge(*(metric.Untyped.Value))
+		// case dto.MetricType_SUMMARY:
+		//
+		// case dto.MetricType_HISTOGRAM:
+	}
+
+	return value
+}
+
+func (ps PrometheusScraper) promSimpleValueToCollectdValueLists(mf *dto.MetricFamily) ([]*api.ValueList, error) {
+	var vls []*api.ValueList
+
+	for metricIdx, metric := range mf.GetMetric() {
+		mTime := promTimestampToTime(metric.TimestampMs)
+		mValue := extractValueFromMetric(mf.GetType(), metric)
+
+		labelBasedMeta := make(api.Metadata)
+		for _, label := range metric.GetLabel() {
+			labelBasedMeta.Add(ps.getLabelName(label.GetName()), label.GetValue())
+		}
+
+		var pluginInstance, typeInstance string
+		if ps.TypeInstanceOnlyHashedMeta {
+			pluginInstance = mf.GetName()
+			typeInstance = ps.hashMetadata(labelBasedMeta)
+		} else {
+			// the unique Hash can be concatenated to plugin_instance or
+			// type_instance based on the configuration
+			pluginInstance = ps.computePluginInstance(labelBasedMeta, mf.GetName())
+			typeInstance = ps.computeTypeInstance(labelBasedMeta, fmt.Sprintf("value%d", metricIdx))
+		}
+
+		identifier := api.Identifier{
+			Plugin:         ps.PluginName,
+			PluginInstance: pluginInstance,
+			Type:           mValue.Type(),
+			TypeInstance:   typeInstance,
+		}
+
+		vl := &api.ValueList{
+			Identifier: identifier,
+			Time:       mTime,
+			Values:     []api.Value{mValue},
+			DSNames:    []string{"value"},
+			Metadata:   extendMetadataWithIdentifier(labelBasedMeta, identifier),
+		}
+
+		vls = append(vls, vl)
+	}
+
+	return vls, nil
+}
+
 func (ps PrometheusScraper) computeTypeInstance(meta api.Metadata, wantedInstance string) string {
 	return ps.computeInstance(pcollectd.TypeInstanceFieldType, meta, wantedInstance)
 }
@@ -353,8 +414,7 @@ func (ps PrometheusScraper) computePluginInstance(meta api.Metadata, wantedInsta
 // computePluginInstance takes a `wantedTypeInstance` as input
 // and eventually concat a unique metadata hash
 func (ps PrometheusScraper) computeInstance(fieldType pcollectd.FieldType, meta api.Metadata, wantedInstance string) string {
-	if !ps.instanceHashLabels ||
-		fieldType != ps.FieldToHash ||
+	if fieldType != ps.FieldToHash ||
 		len(meta) == 0 {
 		return wantedInstance
 	}
