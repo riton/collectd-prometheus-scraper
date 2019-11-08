@@ -1,0 +1,25 @@
+# collectd.org v0.3.0 => gitlab.in2p3.fr/rferrand/go-collectd v0.3.1-0.20191108211450-f0241d01d7b4
+collectd.org/api
+collectd.org/cdtime
+collectd.org/plugin
+# github.com/Tigraine/go-timemilli v0.0.0-20181122103244-0ec4e3ceddb1
+github.com/Tigraine/go-timemilli
+# github.com/golang/protobuf v1.3.2
+github.com/golang/protobuf/proto
+# github.com/matttproud/golang_protobuf_extensions v1.0.1
+github.com/matttproud/golang_protobuf_extensions/pbutil
+# github.com/pkg/errors v0.8.1
+github.com/pkg/errors
+# github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4
+github.com/prometheus/client_model/go
+# github.com/prometheus/common v0.7.0
+github.com/prometheus/common/expfmt
+github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
+github.com/prometheus/common/model
+# gitlab.in2p3.fr/rferrand/go-system-utils v0.1.0
+gitlab.in2p3.fr/rferrand/go-system-utils/os
+# golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
+golang.org/x/crypto/blake2b
+# golang.org/x/sys v0.0.0-20190422165155-953cdadca894
+golang.org/x/sys/cpu
+golang.org/x/sys/unix

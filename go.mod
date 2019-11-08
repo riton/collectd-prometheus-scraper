@@ -12,4 +12,4 @@ require (
 	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 )
 
-replace collectd.org => gitlab.in2p3.fr/rferrand/go-collectd v0.3.1-0.20191108133932-67df3376b4e0
+replace collectd.org => gitlab.in2p3.fr/rferrand/go-collectd v0.3.1-0.20191108211450-f0241d01d7b4
