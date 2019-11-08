@@ -227,116 +227,6 @@ func (ps PrometheusScraper) promSummaryToValueLists(mf *dto.MetricFamily) ([]*ap
 	return vls, nil
 }
 
-func (ps PrometheusScraper) promUntypedToValueLists(mf *dto.MetricFamily) ([]*api.ValueList, error) {
-	var vls []*api.ValueList
-
-	for metricIdx, metric := range mf.GetMetric() {
-		mTime := promTimestampToTime(metric.TimestampMs)
-		mValue := *(metric.Untyped.Value)
-
-		mMeta := make(api.Metadata)
-		for _, label := range metric.GetLabel() {
-			mMeta.Set(ps.getLabelName(label.GetName()), label.GetValue())
-		}
-
-		pluginInstance := ps.computePluginInstance(mMeta, mf.GetName())
-		typeInstance := ps.computeTypeInstance(mMeta,
-			fmt.Sprintf("%d", metricIdx))
-
-		identifier := api.Identifier{
-			Plugin:         ps.PluginName,
-			PluginInstance: pluginInstance,
-			Type:           "gauge",
-			TypeInstance:   typeInstance,
-		}
-
-		vl := &api.ValueList{
-			Identifier: identifier,
-			Time:       mTime,
-			Values:     []api.Value{api.Gauge(mValue)},
-			DSNames:    []string{"value"},
-			Metadata:   extendMetadataWithIdentifier(mMeta, identifier),
-		}
-
-		vls = append(vls, vl)
-	}
-
-	return vls, nil
-}
-
-func (ps PrometheusScraper) promGaugeToValueLists(mf *dto.MetricFamily) ([]*api.ValueList, error) {
-	var vls []*api.ValueList
-
-	for metricIdx, metric := range mf.GetMetric() {
-		mTime := promTimestampToTime(metric.TimestampMs)
-		mValue := *(metric.Gauge.Value)
-
-		mMeta := make(api.Metadata)
-		for _, label := range metric.GetLabel() {
-			mMeta.Set(ps.getLabelName(label.GetName()), label.GetValue())
-		}
-
-		pluginInstance := ps.computePluginInstance(mMeta, mf.GetName())
-		typeInstance := ps.computeTypeInstance(mMeta,
-			fmt.Sprintf("value%d", metricIdx))
-
-		identifier := api.Identifier{
-			Plugin:         ps.PluginName,
-			PluginInstance: pluginInstance,
-			Type:           "gauge",
-			TypeInstance:   typeInstance,
-		}
-
-		vl := &api.ValueList{
-			Identifier: identifier,
-			Time:       mTime,
-			Values:     []api.Value{api.Gauge(mValue)},
-			DSNames:    []string{"value"},
-			Metadata:   extendMetadataWithIdentifier(mMeta, identifier),
-		}
-
-		vls = append(vls, vl)
-	}
-
-	return vls, nil
-}
-
-func (ps PrometheusScraper) promCounterToValueLists(mf *dto.MetricFamily) ([]*api.ValueList, error) {
-	var vls []*api.ValueList
-
-	for metricIdx, metric := range mf.GetMetric() {
-		mTime := promTimestampToTime(metric.TimestampMs)
-		mValue := *(metric.Counter.Value)
-
-		mMeta := make(api.Metadata)
-		for _, label := range metric.GetLabel() {
-			mMeta.Set(ps.getLabelName(label.GetName()), label.GetValue())
-		}
-
-		pluginInstance := ps.computePluginInstance(mMeta, mf.GetName())
-		typeInstance := ps.computeTypeInstance(mMeta, fmt.Sprintf("value%d", metricIdx))
-
-		identifier := api.Identifier{
-			Plugin:         ps.PluginName,
-			PluginInstance: pluginInstance,
-			Type:           "counter",
-			TypeInstance:   typeInstance,
-		}
-
-		vl := &api.ValueList{
-			Identifier: identifier,
-			Time:       mTime,
-			Values:     []api.Value{api.Counter(mValue)},
-			DSNames:    []string{"value"},
-			Metadata:   extendMetadataWithIdentifier(mMeta, identifier),
-		}
-
-		vls = append(vls, vl)
-	}
-
-	return vls, nil
-}
-
 func extractValueFromMetric(mftype dto.MetricType, metric *dto.Metric) api.Value {
 	var value api.Value
 
@@ -347,9 +237,6 @@ func extractValueFromMetric(mftype dto.MetricType, metric *dto.Metric) api.Value
 		value = api.Counter(*(metric.Counter.Value))
 	case dto.MetricType_UNTYPED:
 		value = api.Gauge(*(metric.Untyped.Value))
-		// case dto.MetricType_SUMMARY:
-		//
-		// case dto.MetricType_HISTOGRAM:
 	}
 
 	return value
