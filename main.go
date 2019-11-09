@@ -17,7 +17,8 @@ var (
 )
 
 func main() {
-	scraper := scraper.NewPrometheusScraper("traefik")
+	scraper := scraper.NewPrometheusScraper("coredns")
+	//scraper := scraper.NewPrometheusScraper("traefik")
 	scraper.Read()
 }
 
@@ -43,7 +44,8 @@ func _init() {
 
 	logger.Debugf("configuration: %+v", gConfig)
 
-	pscraper := scraper.NewPrometheusScraper("traefik")
+	pscraper := scraper.NewPrometheusScraper("coredns")
+	//pscraper := scraper.NewPrometheusScraper("traefik")
 
 	plugin.RegisterRead(pluginName, pscraper)
 }

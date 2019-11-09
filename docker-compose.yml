@@ -62,3 +62,17 @@ services:
     entrypoint: ['/bin/sh', '-c']
     command:
       - 'while true; do curl -s "http://whoami-traefik"; sleep 1; done'
+
+  coredns:
+    image: 'coredns/coredns'
+    command:
+      - '-dns.port=10053'
+      - '-conf=/Corefile'
+    volumes:
+      - './docker/dev/coredns/Corefile:/Corefile:ro'
+    environment:
+      PROM_PORT: 9253
+    ports:
+      - 127.0.0.1:10053:10053/udp
+      - 127.0.0.1:10053:10053/tcp
+      - 127.0.0.1:9253:9253/tcp

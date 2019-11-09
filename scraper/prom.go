@@ -75,9 +75,10 @@ type PrometheusScraper struct {
 func NewPrometheusScraper(pluginName string) *PrometheusScraper {
 
 	additionalMetadata := make(api.Metadata)
-	additionalMetadata.Set("api-stable", false)
+	//additionalMetadata.Set("api-stable", false)
 
-	targetURL := "http://traefik:8082/metrics"
+	targetURL := "http://coredns:9253/metrics"
+	//targetURL := "http://traefik:8082/metrics"
 	httpTimeout := 5 * time.Second
 
 	typeInstanceOnlyForHashedMeta := true
