@@ -9,6 +9,7 @@ import (
 type IOWriterLogger struct {
 	Destination io.Writer
 	debug       bool
+	logPrefix   string
 	lock        sync.Mutex
 }
 
@@ -17,6 +18,14 @@ func NewIOWriterLogger(destination io.Writer, debug bool) *IOWriterLogger {
 		Destination: destination,
 		debug:       debug,
 	}
+}
+
+func (l *IOWriterLogger) SetLogPrefix(prefix string) {
+	l.logPrefix = prefix
+}
+
+func (l *IOWriterLogger) SetDebug(enable bool) {
+	l.debug = enable
 }
 
 func (l *IOWriterLogger) Info(msg string) error {

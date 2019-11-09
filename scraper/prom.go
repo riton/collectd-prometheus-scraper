@@ -1,6 +1,7 @@
 package scraper
 
 import (
+	"context"
 	"fmt"
 	"hash"
 	"net/http"
@@ -8,7 +9,6 @@ import (
 	"time"
 
 	"collectd.org/api"
-	"collectd.org/plugin"
 	"golang.org/x/crypto/blake2b"
 
 	pcollectd "gitlab.in2p3.fr/rferrand/collectd-prometheus-plugin/collectd"
@@ -27,9 +27,25 @@ const (
 	promMetaPrefix = "prom."
 )
 
+var (
+	backgroundCtx = context.Background()
+)
+
 type PrometheusScraper struct {
-	PluginName  string
-	MetaPrefix  string
+	PluginName string
+	MetaPrefix string
+
+	// TargetURL is the destination of the scraper
+	TargetURL string
+
+	// HTTPTimeout is the timeout used when performing the GET
+	// on TargetURL
+	HTTPTimeout time.Duration
+
+	// FieldToHash is the collectd field the unique metadata Hash
+	// should be concatenated with. Supported values are
+	// PluginInstanceFieldType or TypeInstanceFieldType
+	// This is of no use if `TypeInstanceOnlyHashedMeta` is set to `true`
 	FieldToHash pcollectd.FieldType
 
 	// TypeInstanceOnlyHashedMeta defines how prometheus values
@@ -50,13 +66,19 @@ type PrometheusScraper struct {
 	// to every metric dispatched
 	// Note: those metadata does not inherits the MetaPrefix value
 	AdditionalMetadata api.Metadata
-	labelHasher        hash.Hash
+
+	labelHasher hash.Hash
+	valueWriter api.Writer
+	httpClient  httpDoer
 }
 
 func NewPrometheusScraper(pluginName string) *PrometheusScraper {
 
 	additionalMetadata := make(api.Metadata)
 	additionalMetadata.Set("api-stable", false)
+
+	targetURL := "http://traefik:8082/metrics"
+	httpTimeout := 5 * time.Second
 
 	typeInstanceOnlyForHashedMeta := true
 	hasherHashSize := 8
@@ -72,14 +94,19 @@ func NewPrometheusScraper(pluginName string) *PrometheusScraper {
 
 	hasher, _ := blake2b.New(hasherHashSize, nil)
 
+	valueWriter := pcollectd.NewFileWriter("/tmp/value_list.txt")
+
 	return &PrometheusScraper{
 		PluginName:                 pluginName,
+		TargetURL:                  targetURL,
+		HTTPTimeout:                httpTimeout,
 		MetaPrefix:                 fmt.Sprintf("%s.", pluginName),
 		FieldToHash:                fieldToHashCollectdField,
 		TypeInstanceOnlyHashedMeta: typeInstanceOnlyForHashedMeta,
 		HashLabelFunctionHashSize:  hasherHashSize,
 		AdditionalMetadata:         additionalMetadata,
 		labelHasher:                hasher,
+		valueWriter:                valueWriter,
 	}
 }
 
@@ -99,10 +126,10 @@ func (ps *PrometheusScraper) Parse() error {
 	// }
 	// defer td.Close()
 	hClient := &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: ps.HTTPTimeout,
 	}
 
-	req, err := http.NewRequest("GET", "http://localhost:8082/metrics", nil)
+	req, err := http.NewRequest("GET", ps.TargetURL, nil)
 	if err != nil {
 		return errors.Wrap(err, "building new HTTP request")
 	}
@@ -153,7 +180,7 @@ func (ps *PrometheusScraper) Parse() error {
 				vl.Metadata = nMeta
 			}
 
-			if err := plugin.Write(vl); err != nil {
+			if err := ps.valueWriter.Write(backgroundCtx, vl); err != nil {
 				return err
 			}
 		}
@@ -375,20 +402,6 @@ func (ps *PrometheusScraper) hashMetadata(meta api.Metadata) string {
 func (ps PrometheusScraper) metaKeyWithPrefix(key string) string {
 	return ps.MetaPrefix + key
 }
-
-// func extendMetadataWithIdentifier(meta api.Metadata,
-// 	id api.Identifier) api.Metadata {
-// 	newMeta := make(api.Metadata)
-//
-// 	for _, key := range meta.Toc() {
-// 		newMeta.Set(key, meta.Get(key))
-// 	}
-//
-// 	newMeta.Set("prom.metric_name", id.PluginInstance)
-// 	newMeta.Set("prom.type_instance", id.TypeInstance)
-//
-// 	return newMeta
-// }
 
 func metadataKeyWithPromPrefix(key string) string {
 	return promMetaPrefix + key

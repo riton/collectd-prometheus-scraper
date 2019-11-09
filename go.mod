@@ -8,8 +8,8 @@ require (
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4
 	github.com/prometheus/common v0.7.0
-	gitlab.in2p3.fr/rferrand/go-system-utils v0.1.0
+	github.com/spf13/viper v1.5.0
 	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 )
 
-replace collectd.org => gitlab.in2p3.fr/rferrand/go-collectd v0.3.1-0.20191108211450-f0241d01d7b4
+replace collectd.org => gitlab.in2p3.fr/rferrand/go-collectd v0.3.1-0.20191109121813-72237cdb9374

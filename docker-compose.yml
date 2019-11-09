@@ -44,12 +44,16 @@ services:
       - 127.0.0.1:80:80
       - 127.0.0.1:8080:8080
       - 127.0.0.1:8082:8082
+    networks:
+      default:
+        aliases:
+          - whoami-traefik
 
   whoami:
     image: "containous/whoami"
     labels:
       traefik.enable: 'true'
-      traefik.http.routers.whoami.rule: 'Host(`whoami.docker.localhost`) || Host(`whoami`)'
+      traefik.http.routers.whoami.rule: 'Host(`whoami.docker.localhost`) || Host(`whoami-traefik`)'
       traefik.http.routers.whoami.entrypoints: 'web'
 
   dummy_client:
@@ -57,4 +61,4 @@ services:
     init: true
     entrypoint: ['/bin/sh', '-c']
     command:
-      - 'while true; do curl -s "http://whoami"; sleep 1; done'
+      - 'while true; do curl -s "http://whoami-traefik"; sleep 1; done'

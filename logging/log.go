@@ -1,6 +1,8 @@
 package logging
 
 type Logger interface {
+	SetDebug(bool)
+	SetLogPrefix(string)
 	Info(string) error
 	Infof(string, ...interface{}) error
 	Error(string) error

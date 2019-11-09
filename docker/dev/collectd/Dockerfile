@@ -16,9 +16,11 @@ USER root:root
 
 COPY --from=builder /build/prometheus_scraper.so /usr/lib64/collectd/prometheus_scraper.so
 COPY docker/dev/collectd/prometheus-LoadPlugin.conf "${COLLECTD_PLUGINS_CFG_DIR}/prometheus_scraper.conf"
+COPY docker/dev/collectd/collectd-prometheus_scraper.yaml /etc/collectd-prometheus_scraper.yaml
 
 RUN chown -R collectd:collectd /etc/collectd* && \
 mkdir -p /var/run/collectd && \
-chown -R collectd:collectd /var/run/collectd
+chown -R collectd:collectd /var/run/collectd && \
+chmod 0644 /etc/collectd-prometheus_scraper.yaml
 
 USER collectd:collectd

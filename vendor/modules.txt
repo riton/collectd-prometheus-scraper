@@ -1,13 +1,33 @@
-# collectd.org v0.3.0 => gitlab.in2p3.fr/rferrand/go-collectd v0.3.1-0.20191108211450-f0241d01d7b4
+# collectd.org v0.3.0 => gitlab.in2p3.fr/rferrand/go-collectd v0.3.1-0.20191109121813-72237cdb9374
 collectd.org/api
 collectd.org/cdtime
+collectd.org/format
 collectd.org/plugin
 # github.com/Tigraine/go-timemilli v0.0.0-20181122103244-0ec4e3ceddb1
 github.com/Tigraine/go-timemilli
+# github.com/fsnotify/fsnotify v1.4.7
+github.com/fsnotify/fsnotify
 # github.com/golang/protobuf v1.3.2
 github.com/golang/protobuf/proto
+# github.com/hashicorp/hcl v1.0.0
+github.com/hashicorp/hcl
+github.com/hashicorp/hcl/hcl/ast
+github.com/hashicorp/hcl/hcl/parser
+github.com/hashicorp/hcl/hcl/printer
+github.com/hashicorp/hcl/hcl/scanner
+github.com/hashicorp/hcl/hcl/strconv
+github.com/hashicorp/hcl/hcl/token
+github.com/hashicorp/hcl/json/parser
+github.com/hashicorp/hcl/json/scanner
+github.com/hashicorp/hcl/json/token
+# github.com/magiconair/properties v1.8.1
+github.com/magiconair/properties
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
+# github.com/mitchellh/mapstructure v1.1.2
+github.com/mitchellh/mapstructure
+# github.com/pelletier/go-toml v1.2.0
+github.com/pelletier/go-toml
 # github.com/pkg/errors v0.8.1
 github.com/pkg/errors
 # github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4
@@ -16,10 +36,26 @@ github.com/prometheus/client_model/go
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
 github.com/prometheus/common/model
-# gitlab.in2p3.fr/rferrand/go-system-utils v0.1.0
-gitlab.in2p3.fr/rferrand/go-system-utils/os
+# github.com/spf13/afero v1.1.2
+github.com/spf13/afero
+github.com/spf13/afero/mem
+# github.com/spf13/cast v1.3.0
+github.com/spf13/cast
+# github.com/spf13/jwalterweatherman v1.0.0
+github.com/spf13/jwalterweatherman
+# github.com/spf13/pflag v1.0.3
+github.com/spf13/pflag
+# github.com/spf13/viper v1.5.0
+github.com/spf13/viper
+# github.com/subosito/gotenv v1.2.0
+github.com/subosito/gotenv
 # golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 golang.org/x/crypto/blake2b
 # golang.org/x/sys v0.0.0-20190422165155-953cdadca894
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
+# golang.org/x/text v0.3.0
+golang.org/x/text/transform
+golang.org/x/text/unicode/norm
+# gopkg.in/yaml.v2 v2.2.4
+gopkg.in/yaml.v2

@@ -28,7 +28,7 @@ func (m Metadata) GetAsString(key string) string {
 	case uint64:
 		return strconv.FormatUint(v.(uint64), 10)
 	case float64:
-		return strconv.FormatFloat(v.(float64), 'e', 10, 64)
+		return strconv.FormatFloat(v.(float64), 'e', 5, 64)
 	case bool:
 		return strconv.FormatBool(v.(bool))
 	case string:

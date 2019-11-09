@@ -28,8 +28,20 @@ func init() {
 }
 
 func _init() {
-	gConfig = newConfig()
-	logger = logging.NewCollectdLogger(gConfig.Debug)
+
+	logger = logging.NewCollectdLogger(pluginName + ": " /* logPrefix */)
+
+	gConfig, err := newConfig()
+	if err != nil {
+		logger.Errorf("reading configuration file %s", err)
+		panic(err)
+	}
+
+	if gConfig.Debug {
+		logger.SetDebug(true)
+	}
+
+	logger.Debugf("configuration: %+v", gConfig)
 
 	pscraper := scraper.NewPrometheusScraper("traefik")
 
