@@ -12,6 +12,7 @@ import (
 	"golang.org/x/crypto/blake2b"
 
 	pcollectd "gitlab.in2p3.fr/rferrand/collectd-prometheus-plugin/collectd"
+	"gitlab.in2p3.fr/rferrand/collectd-prometheus-plugin/transport"
 
 	//"collectd.org/plugin"
 	"github.com/pkg/errors"
@@ -37,10 +38,6 @@ type PrometheusScraper struct {
 
 	// TargetURL is the destination of the scraper
 	TargetURL string
-
-	// HTTPTimeout is the timeout used when performing the GET
-	// on TargetURL
-	HTTPTimeout time.Duration
 
 	// FieldToHash is the collectd field the unique metadata Hash
 	// should be concatenated with. Supported values are
@@ -69,46 +66,44 @@ type PrometheusScraper struct {
 
 	labelHasher hash.Hash
 	valueWriter api.Writer
-	httpClient  httpDoer
+	httpClient  transport.HTTPDoer
 }
 
-func NewPrometheusScraper(pluginName string) *PrometheusScraper {
+func NewPrometheusScraper(pluginName string, metaPrefix string,
+	targetURL string, httpTimeout time.Duration,
+	basicAuthCreds transport.HTTPBasicCreds,
+	typeInstanceOnlyForHashedMeta bool,
+	hasherHashSize int,
+	additionalMetadata api.Metadata) *PrometheusScraper {
 
-	additionalMetadata := make(api.Metadata)
-	//additionalMetadata.Set("api-stable", false)
-
-	targetURL := "http://coredns:9253/metrics"
-	//targetURL := "http://traefik:8082/metrics"
-	httpTimeout := 5 * time.Second
-
-	typeInstanceOnlyForHashedMeta := true
-	hasherHashSize := 8
 	fieldToHash := "plugin_instance"
-	var fieldToHashCollectdField pcollectd.FieldType
-
-	switch fieldToHash {
-	case "plugin_instance":
-		fieldToHashCollectdField = pcollectd.PluginInstanceFieldType
-	case "type_instance":
-		fieldToHashCollectdField = pcollectd.TypeInstanceFieldType
-	}
-
-	hasher, _ := blake2b.New(hasherHashSize, nil)
+	fieldToHashCollectdField := fieldToHashStringToCollectdFieldType(fieldToHash)
 
 	valueWriter := pcollectd.NewFileWriter("/tmp/value_list.txt")
+	// valueWriter := plugin.NewWriter()
 
 	return &PrometheusScraper{
 		PluginName:                 pluginName,
 		TargetURL:                  targetURL,
-		HTTPTimeout:                httpTimeout,
-		MetaPrefix:                 fmt.Sprintf("%s.", pluginName),
+		MetaPrefix:                 metaPrefix,
 		FieldToHash:                fieldToHashCollectdField,
 		TypeInstanceOnlyHashedMeta: typeInstanceOnlyForHashedMeta,
 		HashLabelFunctionHashSize:  hasherHashSize,
 		AdditionalMetadata:         additionalMetadata,
-		labelHasher:                hasher,
 		valueWriter:                valueWriter,
+		httpClient:                 newHTTPClientFnc(httpTimeout, basicAuthCreds),
 	}
+}
+
+func (ps *PrometheusScraper) Initialize() error {
+	hasher, err := blake2b.New(ps.HashLabelFunctionHashSize, nil)
+	if err != nil {
+		return errors.Wrap(err, "initializing hasher")
+	}
+
+	ps.labelHasher = hasher
+
+	return nil
 }
 
 func (ps PrometheusScraper) getLabelName(name string) string {
@@ -121,21 +116,12 @@ func (ps *PrometheusScraper) Read() error {
 
 func (ps *PrometheusScraper) Parse() error {
 
-	// td, err := os.Open("./testdata/traefik_2_metrics.txt")
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// defer td.Close()
-	hClient := &http.Client{
-		Timeout: ps.HTTPTimeout,
-	}
-
 	req, err := http.NewRequest("GET", ps.TargetURL, nil)
 	if err != nil {
 		return errors.Wrap(err, "building new HTTP request")
 	}
 
-	resp, err := hClient.Do(req)
+	resp, err := ps.httpClient.Do(req)
 	if err != nil {
 		return errors.Wrap(err, "performing HTTP request")
 	}
@@ -148,15 +134,8 @@ func (ps *PrometheusScraper) Parse() error {
 		return errors.Wrap(err, "parsing prometheus metrics")
 	}
 
-	//putvalWriter := cformat.NewPutvalWithMeta(os.Stdout)
-
 	var vls []*api.ValueList
 	for _, mFamily := range metrics {
-		// if mName != "http_request_duration_seconds" {
-		// 	//if mName != "go_gc_duration_seconds" {
-		// 	continue
-		// }
-		//fmt.Printf("[%s] %+v\n", mName, mFamily)
 
 		switch mType := mFamily.GetType(); mType {
 		case dto.MetricType_GAUGE, dto.MetricType_UNTYPED, dto.MetricType_COUNTER:
@@ -167,14 +146,7 @@ func (ps *PrometheusScraper) Parse() error {
 			panic(fmt.Sprintf("unknown ptype %d", mType))
 		}
 
-		// for _, metric := range mFamily.Metric {
-		// 	fmt.Printf("%+v\n", metric)
-		// }
-
-		//fmt.Printf("value-lists = %+v\n", vls)
-
 		for _, vl := range vls {
-			//putvalWriter.Write(context.Background(), vl)
 
 			if len(ps.AdditionalMetadata) > 0 {
 				nMeta := vl.Metadata.CloneMerge(ps.AdditionalMetadata)

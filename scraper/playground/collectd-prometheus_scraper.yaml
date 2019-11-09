@@ -7,15 +7,12 @@ scrape_configs:
   'coredns':
     target: 'coredns'
     scrape_timeout: '5s'
-    port: 9253
-    labels:
-      coredns_container: true
 
   'traefik':
     target: 'traefik'
-    port: 8082
     basic_auth:
       username: 'plop'
       password: 'toto'
     labels:
-      traefik_container: true
+      production_ready: false
+      integer_value: 32

@@ -1,9 +1,10 @@
 package main
 
 import (
+	"fmt"
+
 	"collectd.org/plugin"
 	"gitlab.in2p3.fr/rferrand/collectd-prometheus-plugin/logging"
-	"gitlab.in2p3.fr/rferrand/collectd-prometheus-plugin/scraper"
 )
 
 const (
@@ -16,11 +17,7 @@ var (
 	underTest = false
 )
 
-func main() {
-	scraper := scraper.NewPrometheusScraper("coredns")
-	//scraper := scraper.NewPrometheusScraper("traefik")
-	scraper.Read()
-}
+func main() {} // unused
 
 func init() {
 	if !underTest {
@@ -38,14 +35,28 @@ func _init() {
 		panic(err)
 	}
 
+	if len(gConfig.ScrapeConfigs) == 0 {
+		logger.Error("empty scrape_config")
+		panic(fmt.Errorf("empty scrape_config"))
+	}
+
 	if gConfig.Debug {
 		logger.SetDebug(true)
 	}
 
 	logger.Debugf("configuration: %+v", gConfig)
 
-	pscraper := scraper.NewPrometheusScraper("coredns")
 	//pscraper := scraper.NewPrometheusScraper("traefik")
 
-	plugin.RegisterRead(pluginName, pscraper)
+	// register as many read callbacks as scrape targets we have
+	for _, scrapeConfig := range gConfig.ScrapeConfigs {
+		pscraper, err := newPrometheusScraper(scrapeConfig)
+		if err != nil {
+			logger.Errorf("initializing scraper %s, skipping", scrapeConfig.JobName)
+			continue
+		}
+
+		readFunctionName := pluginName + "_" + scrapeConfig.JobName
+		plugin.RegisterRead(readFunctionName, pscraper)
+	}
 }
