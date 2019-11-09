@@ -21,6 +21,12 @@ import (
 
 // See https://github.com/prometheus/client_model/blob/master/go/metrics.pb.go
 
+const (
+	// promMetaPrefix is the Metadata prefix used for prometheus specific
+	// metadatas
+	promMetaPrefix = "prom."
+)
+
 type PrometheusScraper struct {
 	PluginName  string
 	MetaPrefix  string
@@ -127,10 +133,8 @@ func (ps *PrometheusScraper) Parse() error {
 		switch mType := mFamily.GetType(); mType {
 		case dto.MetricType_GAUGE, dto.MetricType_UNTYPED, dto.MetricType_COUNTER:
 			vls, err = ps.promSimpleValueToCollectdValueLists(mFamily)
-		case dto.MetricType_SUMMARY:
-			vls, err = ps.promSummaryToValueLists(mFamily)
-		case dto.MetricType_HISTOGRAM:
-			vls, err = ps.promHistogramToValueLists(mFamily)
+		case dto.MetricType_SUMMARY, dto.MetricType_HISTOGRAM:
+			vls, err = ps.promCompoundedValueToCollectdValueLists(mFamily)
 		default:
 			panic(fmt.Sprintf("unknown ptype %d", mType))
 		}
@@ -158,103 +162,136 @@ func (ps *PrometheusScraper) Parse() error {
 	return nil
 }
 
-func (ps PrometheusScraper) promHistogramToValueLists(mf *dto.MetricFamily) ([]*api.ValueList, error) {
+func (ps PrometheusScraper) newCollectdValueList(name string, mTime time.Time, wTypeInstance string,
+	value api.Value, meta api.Metadata) *api.ValueList {
+
+	var pluginInstance, typeInstance string
+	if ps.TypeInstanceOnlyHashedMeta {
+		pluginInstance = name
+		typeInstance = ps.hashMetadata(meta)
+	} else {
+		// the unique Hash can be concatenated to plugin_instance or
+		// type_instance based on the configuration
+		pluginInstance = ps.computePluginInstance(meta, name)
+		typeInstance = ps.computeTypeInstance(meta, wTypeInstance)
+	}
+
+	identifier := api.Identifier{
+		Plugin:         ps.PluginName,
+		PluginInstance: pluginInstance,
+		Type:           value.Type(),
+		TypeInstance:   typeInstance,
+	}
+
+	return &api.ValueList{
+		Identifier: identifier,
+		Time:       mTime,
+		Values:     []api.Value{value},
+		DSNames:    []string{"value"},
+		Metadata:   meta,
+	}
+
+}
+
+type collectdValueListGeneratorFnc func(string, api.Value, api.Metadata) *api.ValueList
+
+func (ps PrometheusScraper) newCollectdCompoundedValueListFnc(mName string, metric *dto.Metric) collectdValueListGeneratorFnc {
+	metricTime := promTimestampToTime(metric.TimestampMs)
+
+	return func(typeInstance string, value api.Value, meta api.Metadata) *api.ValueList {
+		return ps.newCollectdValueList(mName, metricTime, typeInstance, value, meta)
+	}
+}
+
+func (ps PrometheusScraper) promCompoundedValueToCollectdValueLists(mf *dto.MetricFamily) ([]*api.ValueList, error) {
 	var vls []*api.ValueList
 
-	metric := mf.Metric[0]
-	mTime := promTimestampToTime(metric.TimestampMs)
-	mMeta := make(api.Metadata)
-	for _, label := range metric.GetLabel() {
-		mMeta.Set(ps.getLabelName(label.GetName()), label.GetValue())
-	}
+	for _, metric := range mf.GetMetric() {
 
-	histogram := metric.Histogram
+		labelBasedMeta := ps.metadataFromMetricLabels(metric.GetLabel())
+		newCollectdValueListFnc := ps.newCollectdCompoundedValueListFnc(mf.GetName(), metric)
 
-	newValueList := func(typeInstance string, value api.Value) *api.ValueList {
-
-		pluginInstance := ps.computePluginInstance(mMeta, mf.GetName())
-		cTypeInstance := ps.computeTypeInstance(mMeta, typeInstance)
-
-		identifier := api.Identifier{
-			Plugin:         ps.PluginName,
-			PluginInstance: pluginInstance,
-			Type:           value.Type(),
-			TypeInstance:   cTypeInstance,
+		var typeVl []*api.ValueList
+		switch mf.GetType() {
+		case dto.MetricType_SUMMARY:
+			typeVl = ps.promSummaryMetricToValueLists(newCollectdValueListFnc, metric.Summary, labelBasedMeta)
+		case dto.MetricType_HISTOGRAM:
+			typeVl = ps.promHistogramMetricToValueLists(newCollectdValueListFnc, metric.Histogram, labelBasedMeta)
 		}
 
-		return &api.ValueList{
-			Identifier: identifier,
-			Time:       mTime,
-			Values:     []api.Value{value},
-			DSNames:    []string{"value"},
-			Metadata:   extendMetadataWithIdentifier(mMeta, identifier),
-		}
+		vls = append(vls, typeVl...)
 	}
 
-	vlCount := newValueList("sample_count", api.Counter(*histogram.SampleCount))
-	vlSum := newValueList("sample_sum", api.Counter(*histogram.SampleSum))
+	return vls, nil
+}
+
+func (ps PrometheusScraper) promHistogramMetricToValueLists(newValueListFnc collectdValueListGeneratorFnc,
+	histogram *dto.Histogram, labelBasedMeta api.Metadata) []*api.ValueList {
+
+	var vls []*api.ValueList
+
+	vlCountMeta := pcollectd.ExtendMetadataWithKeyValue(labelBasedMeta,
+		metadataKeyWithPromPrefix("bucket.sample_count"), true)
+	vlCount := newValueListFnc("sample_count", api.Counter(*histogram.SampleCount),
+		vlCountMeta)
+
+	vlSumMeta := pcollectd.ExtendMetadataWithKeyValue(labelBasedMeta,
+		metadataKeyWithPromPrefix("bucket.sample_sum"), true)
+	vlSum := newValueListFnc("sample_sum", api.Counter(*histogram.SampleSum),
+		vlSumMeta)
 
 	vls = append(vls, vlCount, vlSum)
 
 	for _, bucket := range histogram.Bucket {
-		typeInstance := fmt.Sprintf("bucket_%f", *bucket.UpperBound)
-		vlHistogram := newValueList(typeInstance, api.Counter(*bucket.CumulativeCount))
+
+		// set bucket metadata under the dedicated prometheus metadata namespace
+		vlMeta := pcollectd.ExtendMetadataWithKeyValue(labelBasedMeta,
+			metadataKeyWithPromPrefix("bucket.upper_bound"), *bucket.UpperBound /* float64 */)
+
+		typeInstance := fmt.Sprintf("bucket_%f", *bucket.UpperBound) // used only if TypeInstanceOnlyHashedMeta is set to `false`
+		vlHistogram := newValueListFnc(typeInstance, api.Counter(*bucket.CumulativeCount),
+			vlMeta)
 		vls = append(vls, vlHistogram)
 	}
 
-	return vls, nil
+	return vls
 }
 
-func (ps PrometheusScraper) promSummaryToValueLists(mf *dto.MetricFamily) ([]*api.ValueList, error) {
+func (ps PrometheusScraper) promSummaryMetricToValueLists(newValueListFnc collectdValueListGeneratorFnc,
+	summary *dto.Summary, labelBasedMeta api.Metadata) []*api.ValueList {
+
 	var vls []*api.ValueList
 
-	// TODO: FIXME, should iterate over Metrics
-	metric := mf.Metric[0]
+	vlCountMeta := pcollectd.ExtendMetadataWithKeyValue(labelBasedMeta,
+		metadataKeyWithPromPrefix("quantile.sample_count"), true)
+	vlCount := newValueListFnc("sample_count", api.Counter(*summary.SampleCount),
+		vlCountMeta)
 
-	mTime := promTimestampToTime(metric.TimestampMs)
-	mMeta := make(api.Metadata)
-	for _, label := range metric.GetLabel() {
-		mMeta.Set(ps.getLabelName(label.GetName()), label.GetValue())
-	}
-
-	summary := metric.Summary
-
-	newValueList := func(typeInstance string, value api.Value) *api.ValueList {
-
-		pluginInstance := ps.computePluginInstance(mMeta, mf.GetName())
-		cTypeInstance := ps.computeTypeInstance(mMeta, typeInstance)
-
-		identifier := api.Identifier{
-			Plugin:         ps.PluginName,
-			PluginInstance: pluginInstance,
-			Type:           value.Type(),
-			TypeInstance:   cTypeInstance,
-		}
-
-		return &api.ValueList{
-			Identifier: identifier,
-			Time:       mTime,
-			Values:     []api.Value{value},
-			DSNames:    []string{"value"},
-			Metadata:   extendMetadataWithIdentifier(mMeta, identifier),
-		}
-	}
-
-	vlCount := newValueList("sample_count", api.Counter(*summary.SampleCount))
-	vlSum := newValueList("sample_sum", api.Counter(*summary.SampleSum))
+	vlSumMeta := pcollectd.ExtendMetadataWithKeyValue(labelBasedMeta,
+		metadataKeyWithPromPrefix("quantile.sample_sum"), true)
+	vlSum := newValueListFnc("sample_sum", api.Counter(*summary.SampleSum),
+		vlSumMeta)
 
 	vls = append(vls, vlCount, vlSum)
 
 	for _, quantile := range summary.Quantile {
-		typeInstance := fmt.Sprintf("quantile_%f", *quantile.Quantile)
-		vlQuantile := newValueList(typeInstance, api.Gauge(*quantile.Value))
+
+		// set quantile metadata under the dedicated prometheus metadata namespace
+		vlMeta := pcollectd.ExtendMetadataWithKeyValue(labelBasedMeta,
+			metadataKeyWithPromPrefix("quantile.quantile"), *quantile.Quantile /* float64 */)
+
+		typeInstance := fmt.Sprintf("quantile_%f", *quantile.Quantile) // used only if TypeInstanceOnlyHashedMeta is set to `false`
+
+		vlQuantile := newValueListFnc(typeInstance, api.Gauge(*quantile.Value),
+			vlMeta)
+
 		vls = append(vls, vlQuantile)
 	}
 
-	return vls, nil
+	return vls
 }
 
-func extractValueFromMetric(mftype dto.MetricType, metric *dto.Metric) api.Value {
+func extractSimpleValueFromMetric(mftype dto.MetricType, metric *dto.Metric) api.Value {
 	var value api.Value
 
 	switch mftype {
@@ -274,47 +311,28 @@ func (ps PrometheusScraper) promSimpleValueToCollectdValueLists(mf *dto.MetricFa
 
 	for metricIdx, metric := range mf.GetMetric() {
 		mTime := promTimestampToTime(metric.TimestampMs)
-		mValue := extractValueFromMetric(mf.GetType(), metric)
+		mValue := extractSimpleValueFromMetric(mf.GetType(), metric)
 
-		labels := metric.GetLabel()
+		labelBasedMeta := ps.metadataFromMetricLabels(metric.GetLabel())
 
-		labelBasedMeta := make(api.Metadata)
-		if len(labels) > 0 {
-			for _, label := range metric.GetLabel() {
-				labelBasedMeta.Set(ps.getLabelName(label.GetName()), label.GetValue())
-			}
-		}
-
-		var pluginInstance, typeInstance string
-		if ps.TypeInstanceOnlyHashedMeta {
-			pluginInstance = mf.GetName()
-			typeInstance = ps.hashMetadata(labelBasedMeta)
-		} else {
-			// the unique Hash can be concatenated to plugin_instance or
-			// type_instance based on the configuration
-			pluginInstance = ps.computePluginInstance(labelBasedMeta, mf.GetName())
-			typeInstance = ps.computeTypeInstance(labelBasedMeta, fmt.Sprintf("value%d", metricIdx))
-		}
-
-		identifier := api.Identifier{
-			Plugin:         ps.PluginName,
-			PluginInstance: pluginInstance,
-			Type:           mValue.Type(),
-			TypeInstance:   typeInstance,
-		}
-
-		vl := &api.ValueList{
-			Identifier: identifier,
-			Time:       mTime,
-			Values:     []api.Value{mValue},
-			DSNames:    []string{"value"},
-			Metadata:   extendMetadataWithIdentifier(labelBasedMeta, identifier),
-		}
+		typeInstance := fmt.Sprintf("value%d", metricIdx) // value used if TypeInstanceOnlyHashedMeta is `false`
+		vl := ps.newCollectdValueList(mf.GetName(), mTime, typeInstance, mValue,
+			labelBasedMeta)
 
 		vls = append(vls, vl)
 	}
 
 	return vls, nil
+}
+
+func (ps PrometheusScraper) metadataFromMetricLabels(labels []*dto.LabelPair) api.Metadata {
+	labelBasedMeta := make(api.Metadata)
+	if len(labels) > 0 {
+		for _, label := range labels {
+			labelBasedMeta.Set(ps.getLabelName(label.GetName()), label.GetValue())
+		}
+	}
+	return labelBasedMeta
 }
 
 func (ps PrometheusScraper) computeTypeInstance(meta api.Metadata, wantedInstance string) string {
@@ -354,16 +372,24 @@ func (ps *PrometheusScraper) hashMetadata(meta api.Metadata) string {
 	return fmt.Sprintf("%x", ps.labelHasher.Sum(nil))
 }
 
-func extendMetadataWithIdentifier(meta api.Metadata,
-	id api.Identifier) api.Metadata {
-	newMeta := make(api.Metadata)
+func (ps PrometheusScraper) metaKeyWithPrefix(key string) string {
+	return ps.MetaPrefix + key
+}
 
-	for _, key := range meta.Toc() {
-		newMeta.Set(key, meta.Get(key))
-	}
+// func extendMetadataWithIdentifier(meta api.Metadata,
+// 	id api.Identifier) api.Metadata {
+// 	newMeta := make(api.Metadata)
+//
+// 	for _, key := range meta.Toc() {
+// 		newMeta.Set(key, meta.Get(key))
+// 	}
+//
+// 	newMeta.Set("prom.metric_name", id.PluginInstance)
+// 	newMeta.Set("prom.type_instance", id.TypeInstance)
+//
+// 	return newMeta
+// }
 
-	newMeta.Set("prom.metric_name", id.PluginInstance)
-	newMeta.Set("prom.type_instance", id.TypeInstance)
-
-	return newMeta
+func metadataKeyWithPromPrefix(key string) string {
+	return promMetaPrefix + key
 }
