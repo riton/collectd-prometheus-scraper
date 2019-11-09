@@ -10,12 +10,12 @@ RUN GOMODULES=on GOFLAGS="-mod=vendor" GOOS=linux go build -buildmode=c-shared -
 ##
 # Quick and dirty app
 ##
-FROM gitlab-registry.in2p3.fr/rferrand/collectd/feature-meta
+FROM gitlab-registry.in2p3.fr/cc-in2p3/containers/collectd:latest
 
 USER root:root
 
-COPY --from=builder /build/prometheus_scraper.so /src/install/lib/collectd/prometheus_scraper.so
-COPY docker/dev/collectd/minimal_config.conf /etc/collectd.d/minimal_config.conf
+COPY --from=builder /build/prometheus_scraper.so /usr/lib64/collectd/prometheus_scraper.so
+COPY docker/dev/collectd/prometheus-LoadPlugin.conf "${COLLECTD_PLUGINS_CFG_DIR}/prometheus_scraper.conf"
 
 RUN chown -R collectd:collectd /etc/collectd* && \
 mkdir -p /var/run/collectd && \
