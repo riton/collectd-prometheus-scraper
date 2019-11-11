@@ -7,7 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"gitlab.in2p3.fr/rferrand/collectd-prometheus-plugin/transport"
+	"github.com/ccin2p3/collectd-prometheus-plugin/transport"
 )
 
 // All this configuration stuff should be integrated in

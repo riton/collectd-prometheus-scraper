@@ -1,4 +1,4 @@
-module gitlab.in2p3.fr/rferrand/collectd-prometheus-plugin
+module github.com/ccin2p3/collectd-prometheus-plugin
 
 go 1.12
 
@@ -12,4 +12,4 @@ require (
 	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 )
 
-replace collectd.org => gitlab.in2p3.fr/rferrand/go-collectd v0.3.1-0.20191109121813-72237cdb9374
+replace collectd.org => github.com/ccin2p3/go-collectd v0.3.1-0.20191109175513-c02829cacf20

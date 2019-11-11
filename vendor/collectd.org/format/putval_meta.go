@@ -2,6 +2,8 @@
 // various formats.
 package format // import "collectd.org/format"
 
+// Author: Remi Ferrand <remi.ferrand_at_cc.in2p3.fr>
+
 import (
 	"context"
 	"fmt"
@@ -12,6 +14,9 @@ import (
 )
 
 // PutvalWithMeta implements the Writer interface for PutvalWithMeta formatted output.
+// This format is not a standard format like PUTVAL is.
+// This formatter is currently only intended to help while developing plugins that support
+// metadata (LISTVAL or GETVAL does not currently display them)
 type PutvalWithMeta struct {
 	w io.Writer
 }

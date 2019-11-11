@@ -1,6 +1,8 @@
 // Package api defines data types representing core collectd data types.
 package api // import "collectd.org/api"
 
+// Author: Remi Ferrand <remi.ferrand_at_cc.in2p3.fr>
+
 import (
 	"sort"
 	"strconv"
