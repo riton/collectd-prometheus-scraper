@@ -36,7 +36,7 @@ import (
 	"collectd.org/api"
 	"github.com/pkg/errors"
 
-	"github.com/ccin2p3/collectd-prometheus-plugin/scraper"
+	"gitlab.in2p3.fr/rferrand/collectd-prometheus-plugin/scraper"
 )
 
 func newPrometheusScraper(cfg scraperConfig) (*scraper.PrometheusScraper, error) {

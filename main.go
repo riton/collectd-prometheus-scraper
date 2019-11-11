@@ -34,7 +34,7 @@ import (
 	"fmt"
 
 	"collectd.org/plugin"
-	"github.com/ccin2p3/collectd-prometheus-plugin/logging"
+	"gitlab.in2p3.fr/rferrand/collectd-prometheus-plugin/logging"
 )
 
 const (
