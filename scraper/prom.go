@@ -41,8 +41,8 @@ import (
 	"collectd.org/api"
 	"golang.org/x/crypto/blake2b"
 
-	pcollectd "gitlab.in2p3.fr/rferrand/collectd-prometheus-plugin/collectd"
-	"gitlab.in2p3.fr/rferrand/collectd-prometheus-plugin/transport"
+	pcollectd "github.com/ccin2p3/collectd-prometheus-plugin/collectd"
+	"github.com/ccin2p3/collectd-prometheus-plugin/transport"
 
 	//"collectd.org/plugin"
 	"github.com/pkg/errors"

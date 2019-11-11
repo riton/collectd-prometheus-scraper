@@ -31,7 +31,7 @@
 package scraper
 
 import (
-	pcollectd "gitlab.in2p3.fr/rferrand/collectd-prometheus-plugin/collectd"
+	pcollectd "github.com/ccin2p3/collectd-prometheus-plugin/collectd"
 )
 
 func fieldToHashStringToCollectdFieldType(fieldName string) pcollectd.FieldType {

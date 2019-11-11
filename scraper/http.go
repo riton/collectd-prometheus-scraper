@@ -33,7 +33,7 @@ package scraper
 import (
 	"time"
 
-	"gitlab.in2p3.fr/rferrand/collectd-prometheus-plugin/transport"
+	"github.com/ccin2p3/collectd-prometheus-plugin/transport"
 )
 
 var newHTTPClientFnc = func(timeout time.Duration,
