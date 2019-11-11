@@ -21,6 +21,7 @@ trap "rm_tmpdir" EXIT
 
 find . -type f \
   -not -path './vendor/*' \
+  -not -path './.git/*' \
   -name '*.go' > ${MYTMPDIR}/gofiles.txt
 
 
