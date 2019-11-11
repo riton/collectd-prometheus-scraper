@@ -1,4 +1,4 @@
-module github.com/ccin2p3/collectd-prometheus-plugin
+module gitlab.in2p3.fr/rferrand/collectd-prometheus-plugin
 
 go 1.12
 
