@@ -1,4 +1,4 @@
-# collectd.org v0.3.0 => gitlab.in2p3.fr/rferrand/go-collectd v0.3.1-0.20191112182549-47d192eee5d3
+# collectd.org v0.3.0 => github.com/ccin2p3/go-collectd v0.3.1-0.20191112182549-47d192eee5d3
 collectd.org/api
 collectd.org/plugin
 collectd.org/format
