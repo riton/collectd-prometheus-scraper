@@ -1,4 +1,6 @@
 ---
+dist: 'bionic'
+
 language: 'go'
 
 go:
@@ -7,6 +9,7 @@ go:
 env:
   DEBIAN_FRONTEND: 'noninteractive'
   CGO_CPPFLAGS: '-I/usr/include/collectd/core/daemon -I/usr/include/collectd/core'
+  GOFLAGS: '-mod=vendor'
 
 before_install:
   - sudo apt-get install -y collectd-dev
