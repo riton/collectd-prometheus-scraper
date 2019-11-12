@@ -1,0 +1,13 @@
+---
+language: go
+
+env:
+  DEBIAN_FRONTEND: 'noninteractive'
+  CGO_CPPFLAGS: '-I/usr/include/collectd/core/daemon -I/usr/include/collectd/core'
+
+before_install:
+  - sudo apt-get install -y collectd-dev
+
+script:
+  - go test -v ./...
+  - go build -buildmode=c-shared -o prometheus_scraper.so
