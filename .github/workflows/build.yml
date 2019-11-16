@@ -16,7 +16,7 @@ jobs:
         run: 'sudo apt install -y collectd-dev'
 
       - name: 'Checkout code'
-        uses: 'actions/checkout'
+        uses: 'actions/checkout@${GITHUB_SHA}'
 
       - name: 'Install go'
         uses: 'actions/setup-go'
