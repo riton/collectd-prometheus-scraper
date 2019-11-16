@@ -36,3 +36,17 @@ jobs:
         with:
           name: 'prometheus_scraper.so'
           path: 'prometheus_scraper.so'
+
+  rpm_package:
+    name: 'Build an RPM of the collectd-plugin'
+    runs-on: 'ubuntu-latest'
+
+    steps:
+      - name: 'Download artifact from previous job'
+        uses: 'actions/download-artifact@master'
+        with:
+          name: 'prometheus_scraper.so'
+          path: 'prometheus_scraper.so'
+
+      - name: 'debug'
+        run: 'ls -laF prometheus_scraper.so'
