@@ -39,6 +39,7 @@ jobs:
 
   rpm_package:
     name: 'Build an RPM of the collectd-plugin'
+    needs: 'build'
     runs-on: 'ubuntu-latest'
 
     steps:
