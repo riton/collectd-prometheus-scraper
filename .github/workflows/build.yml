@@ -53,12 +53,12 @@ jobs:
 
       - name: 'Prepare FPM directories'
         run: |
-          mkdir -p ./usr/lib64/collectd/ && \
+          mkdir -p ./usr/lib64/collectd/ ./pkg && \
           mv prometheus_scraper.so ./usr/lib64/collectd/ && \
           chmod 0755 ./usr/lib64/collectd/prometheus_scraper.so
 
       - name: 'Package artifact into an RPM'
-        run: 'fpm -s dir -t rpm --license "CECILL-C" --no-rpm-autoreqprov -n "collectd-prometheus-scraper" -v "v0.1.0-${GITHUB_SHA}" --url "https://github.com/riton/collectd-prometheus-scraper" --description "collectd plugin that scrapes prometheus compatible metrics endpoints" --maintainer "Remi Ferrand <remi.ferrand@cc.in2p3.fr>" --depends "collectd < 6.0.0" ./usr'
+        run: 'fpm -s dir -t rpm -p ./pkg/ --license "CECILL-C" --no-rpm-autoreqprov -n "collectd-prometheus-scraper" -v "v0.1.0-${GITHUB_SHA}" --url "https://github.com/riton/collectd-prometheus-scraper" --description "collectd plugin that scrapes prometheus compatible metrics endpoints" --maintainer "Remi Ferrand <remi.ferrand@cc.in2p3.fr>" --depends "collectd < 6.0.0" ./usr'
 
       - name: 'Upload artifact'
         uses: 'actions/upload-artifact@master'
