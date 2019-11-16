@@ -5,51 +5,63 @@ on:
   - 'push'
 
 jobs:
-#   build:
-#     name: 'Build collectd plugin'
-#     runs-on: 'ubuntu-latest'
-#     env:
-#       DEBIAN_FRONTEND: 'noninteractive'
-#       CGO_CPPFLAGS: '-I/usr/include/collectd/core/daemon -I/usr/include/collectd/core'
-#       GOFLAGS: '-mod=vendor'
-# 
-#     steps:
-#       - name: 'Install collectd-dev'
-#         run: 'sudo apt install -y collectd-dev'
-# 
-#       - name: 'Checkout code'
-#         uses: 'actions/checkout@master'
-# 
-#       - name: 'Install go'
-#         uses: 'actions/setup-go@master'
-#         with:
-#           go-version: '1.13.4'
-# 
-#       - name: 'Test code'
-#         run: 'go test -v ./...'
-# 
-#       - name: 'Build plugin'
-#         run: 'go build -buildmode=c-shared -o prometheus_scraper.so'
-# 
-#       - name: 'Upload artifact'
-#         uses: 'actions/upload-artifact@master'
-#         with:
-#           name: 'prometheus_scraper.so'
-#           path: 'prometheus_scraper.so'
+  build:
+    name: 'Build collectd plugin'
+    runs-on: 'ubuntu-latest'
+    env:
+      DEBIAN_FRONTEND: 'noninteractive'
+      CGO_CPPFLAGS: '-I/usr/include/collectd/core/daemon -I/usr/include/collectd/core'
+      GOFLAGS: '-mod=vendor'
+
+    steps:
+      - name: 'Install collectd-dev'
+        run: 'sudo apt install -y collectd-dev'
+
+      - name: 'Checkout code'
+        uses: 'actions/checkout@master'
+
+      - name: 'Install go'
+        uses: 'actions/setup-go@master'
+        with:
+          go-version: '1.13.4'
+
+      - name: 'Test code'
+        run: 'go test -v ./...'
+
+      - name: 'Build plugin'
+        run: 'go build -buildmode=c-shared -o prometheus_scraper.so'
+
+      - name: 'Upload artifact'
+        uses: 'actions/upload-artifact@master'
+        with:
+          name: 'prometheus_scraper.so'
+          path: 'prometheus_scraper.so'
 
   rpm_package:
     name: 'Build an RPM of the collectd-plugin'
-#    needs: 'build'
+    needs: 'build'
     runs-on: 'ubuntu-latest'
     container:
       image: 'remiferrand/fpm'
 
     steps:
-#       - name: 'Download artifact from previous job'
-#         uses: 'actions/download-artifact@master'
-#         with:
-#           name: 'prometheus_scraper.so'
-#           path: 'prometheus_scraper.so'
+      - name: 'Download artifact from previous job'
+        uses: 'actions/download-artifact@master'
+        with:
+          name: 'prometheus_scraper.so'
+          path: 'prometheus_scraper.so'
 
-      - name: 'debug'
-        run: 'which fpm && ls -laF prometheus_scraper.so'
+      - name: 'Prepare FPM directories'
+        run: |
+          mkdir -p ./usr/lib64/collectd/ && \
+          mv prometheus_scraper.so ./usr/lib64/collectd/ && \
+          chmod 0755 ./usr/lib64/collectd/prometheus_scraper.so
+
+      - name: 'Package artifact into an RPM'
+        run: 'fpm -s dir -t rpm --license "CECILL-C" --no-rpm-autoreqprov -n "collectd-prometheus-scraper" -v "v0.1.0-${GITHUB_SHA}" --url "https://github.com/riton/collectd-prometheus-scraper" --description "collectd plugin that scrapes prometheus compatible metrics endpoints" --maintainer "Remi Ferrand <remi.ferrand@cc.in2p3.fr>" --depends "collectd < 6.0.0" ./usr'
+
+      - name: 'Upload artifact'
+        uses: 'actions/upload-artifact@master'
+        with:
+          name: 'collectd-prometheus-scraper.rpm'
+          path: '*.rpm'
