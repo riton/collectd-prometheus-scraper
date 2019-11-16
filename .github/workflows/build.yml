@@ -6,13 +6,15 @@ on:
 
 jobs:
   build:
-    name: 'Build golang app'
+    name: 'Build collectd plugin'
     runs-on: 'ubuntu-latest'
-    steps:
-      - name: 'debug code'
-        run: 'id'
+    env:
+      DEBIAN_FRONTEND: 'noninteractive'
+      CGO_CPPFLAGS: '-I/usr/include/collectd/core/daemon -I/usr/include/collectd/core'
+      GOFLAGS: '-mod=vendor'
 
-      - name: 'install collectd-dev'
+    steps:
+      - name: 'Install collectd-dev'
         run: 'sudo apt install -y collectd-dev'
 
       - name: 'Checkout code'
@@ -23,6 +25,14 @@ jobs:
         with:
           go-version: '1.13.4'
 
-      - name: 'Build code'
-        run: 'id'
+      - name: 'Test code'
+        run: 'go test -v ./...'
 
+      - name: 'Build plugin'
+        run: 'go build -buildmode=c-shared -o prometheus_scraper.so'
+
+      - name: 'Upload artifact'
+        uses: 'actions/upload-artifact@master'
+        with:
+          name: 'prometheus_scraper.so'
+          path: 'prometheus_scraper.so'
