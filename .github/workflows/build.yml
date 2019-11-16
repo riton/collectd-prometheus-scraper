@@ -34,7 +34,7 @@ jobs:
       - name: 'Upload artifact'
         uses: 'actions/upload-artifact@master'
         with:
-          name: 'prometheus_scraper.so'
+          name: 'build_shared_plugin'
           path: 'prometheus_scraper.so'
 
   rpm_package:
@@ -48,13 +48,13 @@ jobs:
       - name: 'Download artifact from previous job'
         uses: 'actions/download-artifact@master'
         with:
-          name: 'prometheus_scraper.so'
-          path: 'prometheus_scraper.so'
+          name: 'build_shared_plugin'
+          path: 'build_shared_plugin'
 
       - name: 'Prepare FPM directories'
         run: |
           mkdir -p ./usr/lib64/collectd/ ./pkg && \
-          mv prometheus_scraper.so ./usr/lib64/collectd/ && \
+          mv build_shared_plugin/prometheus_scraper.so ./usr/lib64/collectd/ && \
           chmod 0755 ./usr/lib64/collectd/prometheus_scraper.so
 
       - name: 'Package artifact into an RPM'
