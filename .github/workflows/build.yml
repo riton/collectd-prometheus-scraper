@@ -1,0 +1,28 @@
+---
+name: 'ci-build'
+
+on:
+  - 'push'
+
+jobs:
+  build:
+    name: 'Build golang app'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'debug code'
+        run: 'id'
+
+      - name: 'install collectd-dev'
+        run: 'sudo apt install -y collectd-dev'
+
+      - name: 'Checkout code'
+        uses: 'actions/checkout'
+
+      - name: 'Install go'
+        uses: 'actions/setup-go'
+        with:
+          go-version: '1.13.4'
+
+      - name: 'Build code'
+        run: 'id'
+
