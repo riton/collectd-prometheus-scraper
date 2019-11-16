@@ -51,14 +51,21 @@ jobs:
           name: 'build_shared_plugin'
           path: 'build_shared_plugin'
 
+        # Use a dedicated fpm_root_dir
+        # try to circumvent the following problem:
+        # $ rpm -qlp collectd-prometheus-scraper-v0.1.0_d12b4c31730ab9ef8db8b12c390c8cbd4f549db8-1.x86_64.rpm 
+        # /usr/lib/.build-id <<== ??
+        # /usr/lib/.build-id/bb <<== ??
+        # /usr/lib/.build-id/bb/069d6d1502a1209248199502be527273607ff1 <<== ??
+        # /usr/lib64/collectd/prometheus_scraper.so
       - name: 'Prepare FPM directories'
         run: |
-          mkdir -p ./usr/lib64/collectd/ ./pkg && \
-          mv build_shared_plugin/prometheus_scraper.so ./usr/lib64/collectd/ && \
-          chmod 0755 ./usr/lib64/collectd/prometheus_scraper.so
+          mkdir -p ./fpm_root_dir/usr/lib64/collectd/ ./pkg && \
+          mv build_shared_plugin/prometheus_scraper.so ./fpm_root_dir/usr/lib64/collectd/ && \
+          chmod 0755 ./fpm_root_dir/usr/lib64/collectd/prometheus_scraper.so
 
       - name: 'Package artifact into an RPM'
-        run: 'fpm -s dir -t rpm -p ./pkg/ --license "CECILL-C" --no-rpm-autoreqprov -n "collectd-prometheus-scraper" -v "v0.1.0-${GITHUB_SHA}" --url "https://github.com/riton/collectd-prometheus-scraper" --description "collectd plugin that scrapes prometheus compatible metrics endpoints" --maintainer "Remi Ferrand <remi.ferrand@cc.in2p3.fr>" --depends "collectd < 6.0.0" ./usr'
+        run: 'cd fpm_root_dir/ && fpm -s dir -t rpm -p ../pkg/ --license "CECILL-C" --no-rpm-autoreqprov -n "collectd-prometheus-scraper" -v "v0.1.0-${GITHUB_SHA}" --url "https://github.com/riton/collectd-prometheus-scraper" --description "collectd plugin that scrapes prometheus compatible metrics endpoints" --maintainer "Remi Ferrand <remi.ferrand@cc.in2p3.fr>" --depends "collectd < 6.0.0" ./usr'
 
       - name: 'Upload artifact'
         uses: 'actions/upload-artifact@master'
