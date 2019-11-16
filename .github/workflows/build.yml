@@ -40,7 +40,7 @@ jobs:
   rpm_package:
     name: 'Build an RPM of the collectd-plugin'
     needs: 'build'
-    runs-on: 'ubuntu-latest'
+    runs-on: 'docker://remiferrand/fpm:latest'
 
     steps:
       - name: 'Download artifact from previous job'
@@ -50,4 +50,4 @@ jobs:
           path: 'prometheus_scraper.so'
 
       - name: 'debug'
-        run: 'ls -laF prometheus_scraper.so'
+        run: 'which fpm && ls -laF prometheus_scraper.so'
